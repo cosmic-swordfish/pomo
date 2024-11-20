@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pomodoro Timer</title>
+  <style>
+    /* CSS Styles */
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+
+    .container {
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+
+    .timer {
+      font-size: 3rem;
+      margin: 20px 0;
+    }
+
+    .hourglass-container {
+      margin: 20px 0;
+    }
+
+    .hourglass {
+      position: relative;
+      width: 50px;
+      height: 80px;
+      background: #ccc;
+      border-radius: 5px;
+      overflow: hidden;
+      margin: 0 auto;
+    }
+
+    .hourglass::before,
+    .hourglass::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #007bff;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      animation: hourglass-fill 4s infinite ease-in-out;
+    }
+
+    .hourglass::before {
+      top: 0;
+      clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    }
+
+    .hourglass::after {
+      bottom: 0;
+      clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+      animation-delay: 2s;
+    }
+
+    @keyframes hourglass-fill {
+      0%, 100% {
+        height: 40px;
+      }
+      50% {
+        height: 0;
+      }
+    }
+
+    .controls button {
+      margin: 5px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    .controls button:hover {
+      background-color: #0056b3;
+    }
+
+    .status {
+      margin-top: 20px;
+      font-style: italic;
+      color: #555;
+    }
+
+    .manual-settings {
+      margin: 20px 0;
+    }
+
+    .manual-settings input {
+      width: 60px;
+      padding: 5px;
+      text-align: center;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .manual-settings button {
+      padding: 5px 10px;
+      border-radius: 5px;
+      border: none;
+      background-color: #28a745;
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .manual-settings button:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Pomodoro Timer</h1>
+    <div class="timer">
+      <span id="minutes">25</span>:<span id="seconds">00</span>
+    </div>
+    <div class="hourglass-container">
+      <div class="hourglass"></div>
+    </div>
+    <div class="controls">
+      <button id="start">Start</button>
+      <button id="pause">Pause</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="status" id="status">Time to focus!</div>
+
+    <div class="manual-settings">
+      <h2>Set Timer</h2>
+      <label>
+        Work (min):
+        <input type="number" id="work-duration" value="25" min="1">
+      </label>
+      <label>
+        Break (sec):
+        <input type="number" id="break-duration" value="20" min="1">
+      </label>
+      <button id="set-timer">Set</button>
+    </div>
+  </div>
+  <script>
+    // JavaScript Functionality
+    let workMinutes = 25;
+    let breakSeconds = 20;
+    let isRunning = false;
+    let isWorkSession = true;
+    let timerInterval;
+
+    const minutesDisplay = document.getElementById("minutes");
+    const secondsDisplay = document.getElementById("seconds");
+    const statusDisplay = document.getElementById("status");
+    const startButton = document.getElementById("start");
+    const pauseButton = document.getElementById("pause");
+    const resetButton = document.getElementById("reset");
+    const setTimerButton = document.getElementById("set-timer");
+    const workDurationInput = document.getElementById("work-duration");
+    const breakDurationInput = document.getElementById("break-duration");
+
+    function updateDisplay(minutes, seconds) {
+      minutesDisplay.textContent = String(minutes).padStart(2, "0");
+      secondsDisplay.textContent = String(seconds).padStart(2, "0");
+    }
+
+    function sendNotification(message) {
+      if (Notification.permission === "granted") {
+        new Notification(message);
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            new Notification(message);
+          }
+        });
+      }
+    }
+
+    function toggleStatus() {
+      isWorkSession = !isWorkSession;
+
+      if (isWorkSession) {
+        statusDisplay.textContent = "Time to focus!";
+        sendNotification("Back to work! Let's focus.");
+        updateDisplay(workMinutes, 0);
+      } else {
+        statusDisplay.textContent = "Take a short break!";
+        sendNotification("Break time! Relax for a while.");
+        updateDisplay(0, breakSeconds);
+      }
+    }
+
+    function startTimer() {
+      if (isRunning) return;
+      isRunning = true;
+
+      let totalSeconds = isWorkSession ? workMinutes * 60 : breakSeconds;
+
+      timerInterval = setInterval(() => {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        updateDisplay(minutes, seconds);
+
+        if (totalSeconds === 0) {
+          clearInterval(timerInterval);
+          isRunning = false;
+          toggleStatus();
+        }
+        totalSeconds--;
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      isRunning = false;
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      isRunning = false;
+      isWorkSession = true;
+      updateDisplay(workMinutes, 0);
+      statusDisplay.textContent = "Time to focus!";
+    }
+
+    function setTimer() {
+      workMinutes = parseInt(workDurationInput.value, 10) || 25;
+      breakSeconds = parseInt(breakDurationInput.value, 10) || 20;
+      resetTimer();
+    }
+
+    startButton.addEventListener("click", startTimer);
+    pauseButton.addEventListener("click", pauseTimer);
+    resetButton.addEventListener("click", resetTimer);
+    setTimerButton.addEventListener("click", setTimer);
+
+    // Request Notification Permission on Load
+    if (Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  </script>
+</body>
+</html>
+
